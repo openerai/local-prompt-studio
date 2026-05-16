@@ -1,0 +1,46 @@
+{
+  "name": "local-prompt-studio",
+  "version": "1.0.0",
+  "description": "Local desktop image-to-prompt studio for vision LLMs.",
+  "main": "main.js",
+  "author": "hhae0257-eng",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "launch": "electron .",
+    "build": "electron-builder --win",
+    "build:dir": "electron-builder --win dir",
+    "package:zip": "powershell -ExecutionPolicy Bypass -NoProfile -Command \"Compress-Archive -Path 'dist/win-unpacked/*' -DestinationPath 'dist/Local-Prompt-Studio-win-unpacked.zip' -Force\"",
+    "test:syntax": "node -c main.js && node -c preload.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.localpromptstudio.app",
+    "productName": "Local Prompt Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "INSTALL_LM_STUDIO.cmd",
+      "START_LOCAL_PROMPT_STUDIO.cmd",
+      "README.md",
+      "docs/**/*",
+      "models/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    }
+  }
+}

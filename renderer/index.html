@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Prompt Studio</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="app shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Local Prompt Studio</h1>
+          <p>LM Studio 기반 이미지 프롬프트 작업공간</p>
+        </div>
+
+        <div class="project-actions">
+          <button id="newProject" type="button">새 프로젝트</button>
+          <button id="refreshProjects" class="secondary" type="button">새로고침</button>
+          <button id="importProject" class="secondary" type="button">가져오기</button>
+          <button id="openProjectsFolder" class="secondary" type="button">폴더 열기</button>
+        </div>
+
+        <section class="project-list-wrap">
+          <h2>프로젝트</h2>
+          <div id="projectList" class="project-list"></div>
+        </section>
+
+        <section class="shot-list-wrap">
+          <h2>이미지 작업</h2>
+          <div id="itemList" class="item-list"></div>
+        </section>
+      </aside>
+
+      <section class="main-workspace">
+        <div class="workspace-head">
+          <div>
+            <h2 id="projectTitle">프로젝트 없음</h2>
+            <p id="projectMeta">새 프로젝트를 만들거나 기존 프로젝트를 선택하세요.</p>
+          </div>
+          <div class="workspace-actions">
+            <button id="renameProject" class="secondary" type="button">이름 변경</button>
+            <button id="exportProject" class="secondary" type="button">내보내기</button>
+            <button id="deleteProject" class="secondary danger" type="button">삭제</button>
+            <button id="saveProject" class="secondary" type="button">저장</button>
+          </div>
+        </div>
+
+        <section class="workspace">
+          <div class="image-pane">
+            <div class="image-toolbar">
+              <label class="toggle-row">
+                <input id="copyImages" type="checkbox">
+                이미지를 프로젝트에 복사 저장
+              </label>
+              <span>꺼두면 원본 경로만 저장되어 용량을 절약합니다.</span>
+            </div>
+            <div id="dropZone" class="drop-zone">
+              <div id="emptyPreview" class="empty-preview">
+                <strong>이미지를 여기에 드롭</strong>
+                <span>작업공간에 이미지가 추가됩니다</span>
+              </div>
+              <img id="previewImage" alt="선택한 이미지 미리보기" hidden>
+            </div>
+          </div>
+
+          <form id="settings" class="settings">
+            <section class="model-panel">
+              <div class="section-title">
+                <span>LM Studio 연결</span>
+                <div class="button-group">
+                  <button id="checkEnvironment" class="secondary" type="button">환경 체크</button>
+                  <button id="prepareEnvironment" class="secondary" type="button">자동 준비</button>
+                </div>
+              </div>
+              <div id="modelFolderPath" class="folder-path">모델 다운로드/추가/로드는 LM Studio에서 관리합니다.</div>
+              <div id="envReport" class="env-report" hidden></div>
+              <label>
+              <span class="label-row">
+                LM Studio 로드 모델
+                <span class="inline-actions">
+                  <button id="refreshModels" class="link-button" type="button">Refresh</button>
+                </span>
+              </span>
+                <select id="modelList">
+                  <option value="">LM Studio에서 모델을 로드한 뒤 Refresh를 누르세요</option>
+                </select>
+              </label>
+              <div id="modelHint" class="hint">
+                GGUF 다운로드, mmproj 연결, 모델 로드는 LM Studio에서 하고 이 앱은 로드된 모델만 사용합니다.
+              </div>
+            </section>
+
+            <div class="grid-2">
+              <label>
+                결과 스타일
+                <select id="targetModel">
+                  <option value="tag" selected>태그형</option>
+                  <option value="sentence">문장형</option>
+                  <option value="system">시스템 프롬프트형</option>
+                </select>
+              </label>
+
+              <label>
+                디테일
+                <select id="detail">
+                  <option value="concise">짧게</option>
+                  <option value="balanced" selected>균형</option>
+                  <option value="exhaustive">상세</option>
+                </select>
+              </label>
+            </div>
+
+            <fieldset>
+              <legend>NSFW 처리</legend>
+              <label class="radio">
+                <input type="radio" name="nsfwMode" value="adult" checked>
+                성인 콘텐츠는 성인 대상일 때만 프롬프트화
+              </label>
+              <label class="radio">
+                <input type="radio" name="nsfwMode" value="sfw">
+                SFW 프롬프트로 변환
+              </label>
+            </fieldset>
+
+            <label>
+              추가 지시
+              <textarea id="customNotes" rows="4" placeholder="예: 태그 중심, 배경 간결하게, 의상 디테일 우선"></textarea>
+            </label>
+
+            <button id="generate" type="submit">프롬프트 생성</button>
+            <div id="status" class="status">프로젝트를 만들고 이미지를 드롭하세요.</div>
+          </form>
+
+        <section class="results">
+          <div class="result-head">
+            <h2>결과</h2>
+            <span id="safetyBadge" class="badge">대기</span>
+          </div>
+
+          <div id="historyList" class="history-list" aria-label="생성 히스토리"></div>
+
+          <div class="output-wrap">
+            <textarea id="output" spellcheck="false" placeholder="생성 결과가 여기에 표시됩니다."></textarea>
+            <button id="copyOutput" type="button">복사</button>
+          </div>
+
+          <div id="tips" class="tips"></div>
+        </section>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="setupDialog" class="setup-dialog">
+      <div class="dialog-head">
+        <h2 id="setupTitle">LM Studio 준비가 필요합니다</h2>
+        <button id="closeSetupDialog" class="icon-button" type="button" aria-label="닫기">×</button>
+      </div>
+      <div id="setupBody" class="dialog-body"></div>
+      <div class="dialog-actions">
+        <button id="prepareFromDialog" type="button">자동 준비</button>
+        <button id="dismissSetupDialog" class="secondary" type="button">닫기</button>
+      </div>
+    </dialog>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

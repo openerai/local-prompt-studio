@@ -1,0 +1,10 @@
+{
+  "models": [
+    {
+      "name": "LM Studio Vision Model",
+      "provider": "openai",
+      "endpoint": "http://127.0.0.1:1234/v1",
+      "model": "your-loaded-lm-studio-model-name"
+    }
+  ]
+}
