@@ -2,6 +2,26 @@
 
 Local Prompt Studio is a Windows desktop app for turning reference images into reusable image-generation prompts with a local model running in LM Studio.
 
+## 한국어 빠른 설치 안내
+
+처음 사용하는 분은 아래 문서를 먼저 보세요.
+
+- [한국어 설치 가이드](docs/KO_USER_SETUP.md)
+
+가장 쉬운 설치 순서:
+
+1. GitHub 페이지 오른쪽의 `Releases`를 클릭합니다.
+2. 최신 버전의 `Assets`에서 Windows 설치 파일을 다운로드합니다.
+3. 설치 파일을 실행해 Local Prompt Studio를 설치합니다.
+4. LM Studio가 없다면 [https://lmstudio.ai/](https://lmstudio.ai/) 에서 설치합니다.
+5. LM Studio에서 이미지 인식이 가능한 Vision 모델을 다운로드하고 `Load` 합니다.
+6. Local Prompt Studio를 열고 `환경 체크`, `Refresh`를 누른 뒤 모델을 선택합니다.
+7. 이미지를 드래그해서 넣고 `프롬프트 생성`을 누릅니다.
+
+주의: GitHub의 초록색 `Code` 버튼으로 받은 zip은 개발자용 소스코드입니다. 일반 사용자는 `Releases`에서 설치 파일을 받는 것이 가장 쉽습니다.
+
+---
+
 The app is designed for a simple workflow:
 
 1. Load a vision-capable model in LM Studio.
