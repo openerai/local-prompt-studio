@@ -15,6 +15,7 @@ The app is designed for a simple workflow:
 - Environment check for LM Studio, local server, and loaded models
 - Drag-and-drop image workspace
 - Project save/load with prompt history per image
+- GitHub Releases based automatic update checks
 - Output styles:
   - Tag style
   - Sentence style
@@ -77,10 +78,11 @@ dist/
 
 Pushing updates to GitHub updates the repository and documentation immediately.
 
-Already-installed apps do not update automatically unless an auto-update system is added. For now, publish a new GitHub Release and ask users to download the latest installer.
+Installed apps can check GitHub Releases for newer versions. Users can also click `업데이트 확인` inside the app.
+
+Auto-update works only for packaged installer builds. During `npm start`, the app is in development mode and skips update checks.
 
 See:
 
 - [Release Guide](docs/RELEASE_GUIDE.md)
 - [GitHub Upload Guide](docs/GITHUB_UPLOAD.md)
-

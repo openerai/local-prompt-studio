@@ -18,5 +18,10 @@ contextBridge.exposeInMainWorld('promptStudio', {
   addModelFiles: (folderPath) => ipcRenderer.invoke('models:addFiles', folderPath),
   checkEnvironment: (folderPath) => ipcRenderer.invoke('env:check', folderPath),
   prepareEnvironment: (folderPath) => ipcRenderer.invoke('env:prepare', folderPath),
-  generatePrompt: (payload) => ipcRenderer.invoke('prompt:generate', payload)
+  generatePrompt: (payload) => ipcRenderer.invoke('prompt:generate', payload),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('updates:status', (_event, payload) => callback(payload));
+  }
 });

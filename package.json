@@ -14,7 +14,9 @@
     "package:zip": "powershell -ExecutionPolicy Bypass -NoProfile -Command \"Compress-Archive -Path 'dist/win-unpacked/*' -DestinationPath 'dist/Local-Prompt-Studio-win-unpacked.zip' -Force\"",
     "test:syntax": "node -c main.js && node -c preload.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  },
   "devDependencies": {
     "electron": "^30.5.1",
     "electron-builder": "^24.13.3"
@@ -41,6 +43,14 @@
         "nsis",
         "zip"
       ]
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "openerai",
+        "repo": "local-prompt-studio",
+        "releaseType": "release"
+      }
+    ]
   }
 }

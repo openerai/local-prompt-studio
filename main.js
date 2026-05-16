@@ -2,14 +2,16 @@ const fs = require('fs/promises');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const MODEL_EXTENSIONS = new Set(['.gguf', '.safetensors', '.bin', '.pt', '.pth', '.onnx']);
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_OPENAI_URL = 'http://127.0.0.1:1234/v1';
+let mainWindow = null;
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1180,
     height: 800,
     minWidth: 920,
@@ -23,19 +25,106 @@ function createWindow() {
     }
   });
 
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  return mainWindow;
+}
+
+function setupAutoUpdater(win) {
+  autoUpdater.autoDownload = false;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('update-available', async (info) => {
+    const result = await dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['다운로드', '나중에'],
+      defaultId: 0,
+      cancelId: 1,
+      title: '업데이트가 있습니다',
+      message: `Local Prompt Studio ${info.version} 버전이 있습니다.`,
+      detail: '다운로드가 끝나면 앱을 다시 시작해 설치할 수 있습니다.'
+    });
+    if (result.response === 0) autoUpdater.downloadUpdate();
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('updates:status', {
+        status: 'current',
+        message: '현재 최신 버전입니다.'
+      });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    const result = await dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['지금 재시작', '나중에'],
+      defaultId: 0,
+      cancelId: 1,
+      title: '업데이트 다운로드 완료',
+      message: `Local Prompt Studio ${info.version} 버전이 준비되었습니다.`,
+      detail: '지금 재시작하면 새 버전이 설치됩니다.'
+    });
+    if (result.response === 0) autoUpdater.quitAndInstall();
+  });
+
+  autoUpdater.on('error', (error) => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('updates:status', {
+        status: 'error',
+        message: `업데이트 확인 실패: ${error.message}`
+      });
+    }
+  });
+}
+
+async function checkForUpdates({ manual = false } = {}) {
+  if (!app.isPackaged) {
+    const message = '자동 업데이트는 설치된 앱에서만 동작합니다. 개발 실행에서는 GitHub Release 확인을 건너뜁니다.';
+    if (manual && mainWindow && !mainWindow.isDestroyed()) {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: '개발 모드',
+        message
+      });
+    }
+    return { status: 'dev', message };
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updates:status', {
+      status: 'checking',
+      message: '업데이트를 확인하는 중입니다...'
+    });
+  }
+
+  await autoUpdater.checkForUpdates();
+  return { status: 'checking', message: '업데이트 확인을 시작했습니다.' };
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  const win = createWindow();
+  setupAutoUpdater(win);
+  setTimeout(() => {
+    checkForUpdates({ manual: false }).catch(() => {});
+  }, 3000);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      const nextWin = createWindow();
+      setupAutoUpdater(nextWin);
+    }
   });
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.handle('updates:check', async () => checkForUpdates({ manual: true }));
+
+ipcMain.handle('updates:install', () => {
+  autoUpdater.quitAndInstall();
 });
 
 function isImagePath(filePath) {

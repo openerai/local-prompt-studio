@@ -103,6 +103,10 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.project-actions #checkUpdates {
+  grid-column: 1 / -1;
+}
+
 .project-list-wrap,
 .shot-list-wrap {
   display: grid;

@@ -18,6 +18,7 @@ const newProjectButton = document.getElementById('newProject');
 const refreshProjectsButton = document.getElementById('refreshProjects');
 const importProjectButton = document.getElementById('importProject');
 const openProjectsFolderButton = document.getElementById('openProjectsFolder');
+const checkUpdatesButton = document.getElementById('checkUpdates');
 const saveProjectButton = document.getElementById('saveProject');
 const renameProjectButton = document.getElementById('renameProject');
 const exportProjectButton = document.getElementById('exportProject');
@@ -598,6 +599,19 @@ openProjectsFolderButton.addEventListener('click', async () => {
   setStatus(`프로젝트 폴더를 열었습니다: ${folderPath}`, 'ok');
 });
 
+checkUpdatesButton.addEventListener('click', async () => {
+  checkUpdatesButton.disabled = true;
+  setStatus('업데이트를 확인하는 중입니다...');
+  try {
+    const result = await window.promptStudio.checkForUpdates();
+    setStatus(result.message, result.status === 'dev' ? '' : 'ok');
+  } catch (error) {
+    setStatus(`업데이트 확인 실패: ${error.message}`, 'error');
+  } finally {
+    checkUpdatesButton.disabled = false;
+  }
+});
+
 projectList.addEventListener('click', async (event) => {
   if (event.target.matches('[data-rename-project-id]')) return;
   const row = event.target.closest('[data-project-id]');
@@ -727,6 +741,11 @@ dismissSetupDialogButton.addEventListener('click', closeSetupDialog);
 prepareFromDialogButton.addEventListener('click', () => {
   closeSetupDialog();
   prepareEnvironmentButton.click();
+});
+
+window.promptStudio.onUpdateStatus((payload) => {
+  if (!payload || !payload.message) return;
+  setStatus(payload.message, payload.status === 'error' ? 'error' : payload.status === 'current' ? 'ok' : '');
 });
 
 (async function init() {
