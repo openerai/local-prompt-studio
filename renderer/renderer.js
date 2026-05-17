@@ -322,7 +322,8 @@ async function addImage(filePath) {
 }
 
 function renderModels() {
-  const previousModel = state.selectedModel ? state.selectedModel.model : null;
+  const savedModel = localStorage.getItem('selectedLmStudioModel');
+  const previousModel = state.selectedModel ? state.selectedModel.model : savedModel;
   const visibleModels = state.models.filter((model) => model.source === 'lmstudio-loaded' || model.source === 'lmstudio-api');
   const runnableModels = visibleModels.filter((model) => isRunnableModel(model));
   modelList.innerHTML = '';
@@ -349,6 +350,7 @@ function renderModels() {
   const globalIndex = state.models.indexOf(selectedModel);
   modelList.value = String(globalIndex);
   state.selectedModel = selectedModel;
+  if (selectedModel) localStorage.setItem('selectedLmStudioModel', selectedModel.model);
   updateModelHint();
 }
 
@@ -694,8 +696,17 @@ refreshModelsButton.addEventListener('click', async () => {
 
 modelList.addEventListener('change', () => {
   const index = Number(modelList.value);
-  state.selectedModel = Number.isFinite(index) ? state.models[index] : null;
+  const selectedModel = Number.isFinite(index) ? state.models[index] : null;
+  if (!selectedModel || !isRunnableModel(selectedModel)) {
+    state.selectedModel = null;
+    localStorage.removeItem('selectedLmStudioModel');
+    updateModelHint();
+    return;
+  }
+  state.selectedModel = selectedModel;
+  localStorage.setItem('selectedLmStudioModel', selectedModel.model);
   updateModelHint();
+  setStatus(`모델을 변경했습니다: ${selectedModel.model}`, 'ok');
 });
 
 dropZone.addEventListener('dragover', (event) => {
