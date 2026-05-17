@@ -623,13 +623,13 @@ function buildAnalysisPrompt(options = {}) {
   const nsfwMode = options.nsfwMode || 'adult';
   const customNotes = String(options.customNotes || '').trim();
   const detailLine = {
-    concise: 'Keep it efficient but still include the main subject, pose, clothing, environment, lighting, camera angle, and mood.',
-    balanced: 'Write a rich production-ready result with visible traits, composition, lighting, material, camera, environment, color, mood, and useful style cues.',
-    exhaustive: 'Be highly detailed and layered, including small visual cues, texture, pose, environment, camera/lens feel, lighting direction, color palette, composition, and aesthetic modifiers.'
+    concise: 'Keep it efficient but still include the main subject, pose, clothing, environment, lighting, camera angle, color, texture, and mood.',
+    balanced: 'Before writing the final prompt, inspect the image element by element: subject identity type, pose, gaze, hands, clothing layers, fabric texture, hair, face, background objects, location, lighting direction, shadow quality, color palette, camera angle, framing, lens feel, depth, mood, and realism level. Write a rich production-ready result from that analysis.',
+    exhaustive: 'Perform a meticulous element-by-element visual breakdown before composing the final prompt. Include small visual cues, pose mechanics, hand placement, facial expression, clothing construction, fabric/material texture, body orientation, environment objects, background depth, lighting direction, highlight/shadow behavior, color palette, camera/lens feel, framing, perspective, image quality, noise/grain, realism level, and aesthetic modifiers.'
   }[detail] || 'Write a rich production-ready result.';
   const styleLine = {
-    tag: 'Output style: tag prompt. Make "prompt" a dense comma-separated prompt with 35-70 useful tags or short phrases, ordered from subject to composition, clothing, environment, lighting, camera, quality, and mood.',
-    sentence: 'Output style: sentence prompt. Make "prompt" 3-5 polished natural-language sentences suitable for image generation, with clear subject, scene, composition, lighting, camera, textures, and mood.',
+    tag: 'Output style: tag prompt. Make "prompt" a dense comma-separated prompt with 60-120 useful tags or short phrases, ordered from subject to expression, pose, clothing, fabric, body orientation, composition, environment, objects, lighting, color, camera, texture, quality, and mood.',
+    sentence: 'Output style: sentence prompt. Make "prompt" 5-8 polished natural-language sentences suitable for image generation, with clear subject, expression, pose, clothing, fabric texture, scene, background objects, composition, lighting, camera, color palette, image texture, and mood.',
     system: 'Output style: system prompt. Make "prompt" a structured JSON-like image generation prompt, not prose. Use nested objects and arrays similar to: objective, aspect_ratio, composition, subject, visual_style, lighting, camera, quality_targets, negative_constraints. When facial expressions or repeated panels are visible or requested, include expression/panel objects. Keep keys in English, values descriptive, and make it directly usable as a generation prompt. If possible, put prompt as a real JSON object, not as an escaped string with literal \\n characters.'
   }[outputStyle] || 'Output style: sentence prompt. Make "prompt" detailed and directly usable for image generation.';
 
@@ -642,7 +642,9 @@ function buildAnalysisPrompt(options = {}) {
     styleLine,
     `NSFW handling: ${nsfwMode === 'sfw' ? 'convert to a safe-for-work prompt' : 'adult-only NSFW prompt details are allowed when lawful and consensual'}.`,
     detailLine,
+    'Do a silent visual checklist before answering: subject, face/expression, gaze, pose, hands, clothing, fabric/material, hair, skin/texture, background, props/objects, lighting, color palette, camera angle, framing, depth, image quality, mood.',
     'Prefer visually useful specificity over generic words. Avoid vague filler such as beautiful, masterpiece, best quality unless it is paired with concrete visual details.',
+    'Do not merely caption the image. Convert visual observations into generation-useful prompt language.',
     'The "prompt" value should be substantially descriptive, not a short caption. The "caption" should stay factual and neutral.',
     customNotes ? `User notes: ${customNotes}` : '',
     '',
@@ -651,7 +653,7 @@ function buildAnalysisPrompt(options = {}) {
     '  "safety": {"rating": "sfw|adult|blocked", "reason": "short reason"},',
     '  "caption": "neutral factual image caption",',
     '  "prompt": "main prompt in the selected output style; for system style, this may be a structured JSON object instead of a string",',
-    '  "tagPrompt": "comma-separated tag prompt, even when another style is selected",',
+    '  "tagPrompt": "detailed comma-separated tag prompt, even when another style is selected",',
     '  "negativePrompt": "comma-separated negative prompt",',
     '  "modelTips": ["short practical prompt/model tips"]',
     '}'
@@ -666,16 +668,16 @@ function buildFallbackPrompt(options = {}) {
 
   return [
     'Look at the uploaded image and create a prompt for an image generation model.',
-    `Output style: ${outputStyle}. Use tag style for "tag", 3-5 descriptive sentences for "sentence", and structured JSON-like image prompt format for "system".`,
+    `Output style: ${outputStyle}. Use 60-120 detailed tags for "tag", 5-8 descriptive sentences for "sentence", and structured JSON-like image prompt format for "system".`,
     `Detail level: ${detail}.`,
-    'Make the main PROMPT longer than a caption and include subject, pose, clothing, environment, lighting, camera angle, texture, color, mood, and generation-useful style details.',
+    'Analyze the image element by element before writing. Make the main PROMPT longer than a caption and include subject, expression, gaze, pose, hands, clothing, fabric/material, hair, skin texture, environment, objects, lighting, shadows, camera angle, framing, depth, texture, color palette, mood, and generation-useful style details.',
     `NSFW mode: ${nsfwMode}. Only describe adult sexual content when the subject is clearly adult.`,
     customNotes ? `User notes: ${customNotes}` : '',
     '',
     'Write the answer in this format:',
     'CAPTION: one factual caption',
     'PROMPT: one detailed polished generation prompt in the selected output style. If style is system, write a JSON-like object with keys such as objective, aspect_ratio, composition, subject, visual_style, lighting, camera, quality_targets, negative_constraints',
-    'TAGS: comma-separated tags',
+    'TAGS: detailed comma-separated tags covering subject, expression, pose, clothing, background, lighting, camera, color, texture, mood',
     'NEGATIVE: comma-separated negative prompt',
     'TIPS: short practical tips'
   ].filter(Boolean).join('\n');
@@ -882,7 +884,7 @@ async function runOpenAICompatible({ baseUrl, apiKey, model, prompt, imageDataUr
     return postJson(`${normalizedBaseUrl}/chat/completions`, {
       model,
       temperature: 0.35,
-      max_tokens: 1800,
+      max_tokens: 2600,
       messages: [
         {
           role: 'user',
