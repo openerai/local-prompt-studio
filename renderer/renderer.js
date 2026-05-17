@@ -53,6 +53,15 @@ const closeSetupDialogButton = document.getElementById('closeSetupDialog');
 const dismissSetupDialogButton = document.getElementById('dismissSetupDialog');
 const prepareFromDialogButton = document.getElementById('prepareFromDialog');
 
+function relocateProjectActions() {
+  const actions = document.querySelector('.workspace-actions');
+  const projectWrap = document.querySelector('.project-list-wrap');
+  const projectListEl = document.getElementById('projectList');
+  if (!actions || !projectWrap || !projectListEl || actions.parentElement === projectWrap) return;
+  actions.classList.add('is-sidebar-actions');
+  projectWrap.insertBefore(actions, projectListEl);
+}
+
 function setStatus(message, type = '') {
   statusText.textContent = message;
   statusText.className = `status ${type}`.trim();
@@ -765,6 +774,7 @@ window.promptStudio.onUpdateStatus((payload) => {
 });
 
 (async function init() {
+  relocateProjectActions();
   await loadProjects();
   if (state.projects[0]) await loadProject(state.projects[0].id);
   else renderAll();
