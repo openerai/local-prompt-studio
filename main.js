@@ -69,10 +69,20 @@ function setupAutoUpdater(win) {
   });
 
   autoUpdater.on('error', (error) => {
+    const message = String(error && error.message || error || '');
+    if (message.includes('No published versions') || message.includes('No releases found')) {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('updates:status', {
+          status: 'current',
+          message: '아직 GitHub Release가 없습니다. 첫 배포 파일을 올리면 업데이트 확인이 작동합니다.'
+        });
+      }
+      return;
+    }
     if (win && !win.isDestroyed()) {
       win.webContents.send('updates:status', {
         status: 'error',
-        message: `업데이트 확인 실패: ${error.message}`
+        message: `업데이트 확인 실패: ${message}`
       });
     }
   });
@@ -376,17 +386,28 @@ function parseLmsPs(stdout) {
 }
 
 async function fetchLMStudioModels() {
-  if (!(await hasLmsCommand())) return [];
-
   try {
-    const { stdout } = await execFileAsync('lms', ['ps'], {
-      timeout: 10 * 1000,
-      windowsHide: true
-    });
-    return parseLmsPs(stdout);
+    if (await hasLmsCommand()) {
+      const { stdout } = await execFileAsync('lms', ['ps'], {
+        timeout: 10 * 1000,
+        windowsHide: true
+      });
+      const loadedModels = parseLmsPs(stdout);
+      if (loadedModels.length) return loadedModels;
+    }
   } catch (_error) {
-    return [];
+    // Fall back to the OpenAI-compatible API model list below.
   }
+
+  const apiModels = await getOpenAICompatibleModels();
+  return apiModels.map((model) => ({
+    name: model,
+    provider: 'openai',
+    endpoint: DEFAULT_OPENAI_URL,
+    model,
+    filePath: null,
+    source: 'lmstudio-api'
+  }));
 }
 
 async function getOpenAICompatibleModels() {

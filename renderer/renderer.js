@@ -323,17 +323,17 @@ async function addImage(filePath) {
 
 function renderModels() {
   const previousModel = state.selectedModel ? state.selectedModel.model : null;
-  const visibleModels = state.models.filter((model) => model.source === 'lmstudio-loaded');
+  const visibleModels = state.models.filter((model) => model.source === 'lmstudio-loaded' || model.source === 'lmstudio-api');
   const runnableModels = visibleModels.filter((model) => isRunnableModel(model));
   modelList.innerHTML = '';
 
   if (runnableModels.length === 0 && visibleModels.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = 'LM Studio에서 모델을 로드한 뒤 Refresh를 누르세요';
+    option.textContent = 'LM Studio에서 모델을 로드하거나 서버를 켠 뒤 Refresh';
     modelList.appendChild(option);
     state.selectedModel = null;
-    modelHint.textContent = '기본 보기에는 LM Studio에 로드된 모델만 표시합니다.';
+    modelHint.textContent = 'LM Studio API에서 모델을 찾지 못했습니다. LM Studio에서 모델을 Load 하고 서버를 켠 뒤 Refresh를 누르세요.';
     return;
   }
 
@@ -365,6 +365,7 @@ function displayModelName(model) {
   const badge = !isRunnableModel(model)
     ? '파일 보관됨'
     : model.source === 'lmstudio-loaded' ? 'LM Studio loaded'
+      : model.source === 'lmstudio-api' ? 'LM Studio API'
       : isVisionModel(model) ? 'vision' : 'text';
   return `${model.name} · ${badge}`;
 }
@@ -372,17 +373,21 @@ function displayModelName(model) {
 function pickBestRunnableModel() {
   const candidates = state.models.filter((model) => isRunnableModel(model));
   return candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('hauhaucs')) ||
+    candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('vl')) ||
+    candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('vision')) ||
+    candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('qwen')) ||
     candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('qwen3.6')) ||
     candidates.find((model) => model.source === 'lmstudio-loaded') ||
+    candidates.find((model) => model.source === 'lmstudio-api') ||
     null;
 }
 
 function updateModelHint() {
   if (!state.selectedModel) {
-    modelHint.textContent = 'LM Studio에서 모델을 로드한 뒤 Refresh를 누르세요.';
+    modelHint.textContent = 'LM Studio에서 모델을 Load 하거나 서버를 켠 뒤 Refresh를 누르세요.';
     return;
   }
-  modelHint.textContent = `LM Studio에 로드된 모델입니다. 생성 시 서버를 자동으로 켭니다. · ${state.selectedModel.model}`;
+  modelHint.textContent = `LM Studio에서 감지된 모델입니다. 이미지 분석이 안 되면 LM Studio에서 Vision 모델을 Load 했는지 확인하세요. · ${state.selectedModel.model}`;
 }
 
 async function loadModelFolder(folderPath = null) {
