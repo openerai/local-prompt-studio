@@ -24,6 +24,7 @@
   "build": {
     "appId": "com.localpromptstudio.app",
     "productName": "Local Prompt Studio",
+    "artifactName": "Local-Prompt-Studio-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
@@ -33,12 +34,15 @@
       "INSTALL_LM_STUDIO.cmd",
       "START_LOCAL_PROMPT_STUDIO.cmd",
       "README.md",
+      "assets/**/*",
       "docs/**/*",
       "models/**/*",
       "renderer/**/*",
       "package.json"
     ],
     "win": {
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
       "target": [
         "nsis",
         "zip"
