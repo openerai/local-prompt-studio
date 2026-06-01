@@ -405,6 +405,9 @@ async function loadModelFolder(folderPath = null) {
   const result = await window.promptStudio.scanModelFolder(folderPath);
   state.modelFolderPath = result.folderPath;
   state.models = result.models || [];
+  if (state.modelFolderPath) {
+    localStorage.setItem('modelFolderPath', state.modelFolderPath);
+  }
   modelFolderPath.textContent = '모델 다운로드/추가/로드는 LM Studio에서 관리합니다.';
   renderModels();
 }
@@ -539,6 +542,7 @@ function closeSetupDialog() {
 
 function friendlyError(error) {
   const message = String(error && error.message || error || '');
+  if (message.includes('ENOTDIR')) return '앱의 모델 폴더 경로가 손상되어 기본 폴더로 복구했습니다. Refresh를 한 번 더 눌러 주세요.';
   if (message.includes('LM_STUDIO_SERVER_NOT_READY')) return 'LM Studio 서버를 자동으로 켜지 못했습니다. LM Studio 앱을 한 번 열고 다시 생성해 주세요.';
   if (message.includes('EMPTY_MODEL_RESPONSE')) return '모델이 빈 답변을 반환했습니다. LM Studio에서 vision/projector 설정을 확인해 주세요.';
   return '프롬프트 생성에 실패했습니다. 환경 체크 후 모델을 다시 선택해 주세요.';

@@ -142,7 +142,25 @@ function isImagePath(filePath) {
 }
 
 function defaultModelFolder() {
-  return path.join(__dirname, 'models');
+  return path.join(app.getPath('userData'), 'models');
+}
+
+async function resolveModelFolder(folderPath) {
+  const fallback = defaultModelFolder();
+  const candidate = String(folderPath || fallback);
+
+  if (!candidate || candidate.includes('.asar')) {
+    return fallback;
+  }
+
+  try {
+    const stat = await fs.stat(candidate);
+    if (!stat.isDirectory()) return fallback;
+  } catch (_error) {
+    // Missing folders are fine; callers create them after the path is resolved.
+  }
+
+  return candidate;
 }
 
 function defaultProjectsFolder() {
@@ -437,7 +455,7 @@ function summarizeVisionCandidates(models) {
 }
 
 async function checkEnvironment(folderPath) {
-  const targetFolder = folderPath || defaultModelFolder();
+  const targetFolder = await resolveModelFolder(folderPath);
   const [
     lmsInstalled,
     lmStudioApiModels,
@@ -595,7 +613,7 @@ async function fetchOllamaModels() {
 }
 
 async function scanModelFolder(folderPath) {
-  const targetFolder = folderPath || defaultModelFolder();
+  const targetFolder = await resolveModelFolder(folderPath);
   await fs.mkdir(targetFolder, { recursive: true });
   const [lmStudioModels, fileModels] = await Promise.all([
     fetchLMStudioModels(),
@@ -1054,7 +1072,7 @@ ipcMain.handle('env:check', async (_event, folderPath) => checkEnvironment(folde
 ipcMain.handle('env:prepare', async (_event, folderPath) => prepareLMStudioEnvironment(folderPath));
 
 ipcMain.handle('models:addFiles', async (_event, folderPath) => {
-  const targetFolder = folderPath || defaultModelFolder();
+  const targetFolder = await resolveModelFolder(folderPath);
   await fs.mkdir(targetFolder, { recursive: true });
 
   const result = await dialog.showOpenDialog({
