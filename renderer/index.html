@@ -11,7 +11,7 @@
       <aside class="sidebar">
         <div class="brand">
           <h1>Local Prompt Studio</h1>
-          <p>LM Studio 기반 이미지 프롬프트 작업공간</p>
+          <p>로컬 모델 기반 이미지 프롬프트 작업공간</p>
         </div>
 
         <div class="project-actions">
@@ -68,27 +68,28 @@
           <form id="settings" class="settings">
             <section class="model-panel">
               <div class="section-title">
-                <span>LM Studio 연결</span>
+                <span>로컬 모델 연결</span>
                 <div class="button-group">
                   <button id="checkEnvironment" class="secondary" type="button">환경 체크</button>
                   <button id="prepareEnvironment" class="secondary" type="button">자동 준비</button>
                 </div>
               </div>
-              <div id="modelFolderPath" class="folder-path">모델 다운로드/추가/로드는 LM Studio에서 관리합니다.</div>
+              <div id="modelFolderPath" class="folder-path">모델 다운로드/추가/로드는 로컬 모델 실행기에서 관리합니다.</div>
               <div id="envReport" class="env-report" hidden></div>
               <label>
               <span class="label-row">
-                LM Studio 로드 모델
+                로컬 모델
                 <span class="inline-actions">
                   <button id="refreshModels" class="link-button" type="button">Refresh</button>
+                  <button id="testModel" class="link-button" type="button">모델 테스트</button>
                 </span>
               </span>
                 <select id="modelList">
-                  <option value="">LM Studio에서 모델을 로드한 뒤 Refresh를 누르세요</option>
+                  <option value="">로컬 모델을 준비한 뒤 Refresh를 누르세요</option>
                 </select>
               </label>
               <div id="modelHint" class="hint">
-                GGUF 다운로드, mmproj 연결, 모델 로드는 LM Studio에서 하고 이 앱은 로드된 모델만 사용합니다.
+                로컬 모델을 불러올 수 있습니다. 이미지 분석에는 Vision/VL 모델이 필요합니다.
               </div>
             </section>
 
@@ -154,7 +155,7 @@
 
     <dialog id="setupDialog" class="setup-dialog">
       <div class="dialog-head">
-        <h2 id="setupTitle">LM Studio 준비가 필요합니다</h2>
+        <h2 id="setupTitle">로컬 모델 준비가 필요합니다</h2>
         <button id="closeSetupDialog" class="icon-button" type="button" aria-label="닫기">×</button>
       </div>
       <div id="setupBody" class="dialog-body"></div>

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('promptStudio', {
   pickModelFolder: () => ipcRenderer.invoke('models:pickFolder'),
   scanModelFolder: (folderPath) => ipcRenderer.invoke('models:scan', folderPath),
   addModelFiles: (folderPath) => ipcRenderer.invoke('models:addFiles', folderPath),
+  testModel: (payload) => ipcRenderer.invoke('models:test', payload),
   checkEnvironment: (folderPath) => ipcRenderer.invoke('env:check', folderPath),
   prepareEnvironment: (folderPath) => ipcRenderer.invoke('env:prepare', folderPath),
   generatePrompt: (payload) => ipcRenderer.invoke('prompt:generate', payload),

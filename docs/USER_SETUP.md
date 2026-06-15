@@ -1,16 +1,27 @@
 # User Setup Guide
 
-This guide is for first-time users who have never used LM Studio.
+This guide is for first-time users who have never used a local vision model runner.
 
 ## 1. Install Local Prompt Studio
 
-Download the latest installer from the GitHub Releases page.
+Download the latest installer from the GitHub Releases page:
 
-Run the installer and open Local Prompt Studio.
+```text
+https://github.com/openerai/local-prompt-studio/releases
+```
 
-## 2. Install LM Studio
+Run the Windows `.exe` installer and open Local Prompt Studio.
 
-Local Prompt Studio uses LM Studio to run local models.
+## 2. Install a Local Model Runner
+
+Local Prompt Studio does not run raw model files directly. It connects to a local model runner.
+
+Supported runners:
+
+- LM Studio
+- Ollama
+
+## 3. LM Studio Setup
 
 Install LM Studio from:
 
@@ -18,19 +29,7 @@ Install LM Studio from:
 https://lmstudio.ai/
 ```
 
-On Windows, this repository also includes:
-
-```text
-INSTALL_LM_STUDIO.cmd
-```
-
-That script attempts to install LM Studio with winget.
-
-## 3. Download a Vision Model in LM Studio
-
-Open LM Studio.
-
-Use LM Studio's model search/download feature to get a model that can read images. Look for terms such as:
+Open LM Studio and download a model that can read images. Search for terms such as:
 
 ```text
 vision
@@ -40,38 +39,45 @@ qwen-vl
 multimodal
 ```
 
-If a model requires a projector or mmproj file, set that up inside LM Studio.
-
-## 4. Load the Model
-
-In LM Studio, load the model into memory.
-
-The model must be loaded before Local Prompt Studio can use it.
-
-## 5. Start the Local Server
-
-Local Prompt Studio can try to start the LM Studio local server automatically.
-
-If that does not work, open LM Studio and enable the local server/API manually.
-
-Default server:
+Load the model in LM Studio and make sure the local server/API is available at:
 
 ```text
 http://127.0.0.1:1234/v1
 ```
 
-## 6. Use Local Prompt Studio
+## 4. Ollama Setup
+
+Install Ollama from:
+
+```text
+https://ollama.com/
+```
+
+Install a vision model, for example:
+
+```powershell
+ollama pull llava
+```
+
+Ollama normally runs at:
+
+```text
+http://127.0.0.1:11434
+```
+
+## 5. Use Local Prompt Studio
 
 1. Click `환경 체크`.
 2. Click `자동 준비` if something is missing.
 3. Click `Refresh` next to the model list.
-4. Select the loaded LM Studio model.
-5. Drag an image into the workspace.
-6. Choose a result style:
-   - 태그형
-   - 문장형
-   - 시스템 프롬프트형
-7. Click `프롬프트 생성`.
+4. Select a detected model.
+5. Click `모델 테스트` if available.
+6. Drag an image into the workspace.
+7. Choose a result style:
+   - Tag style
+   - Sentence style
+   - Structured system prompt style
+8. Click `프롬프트 생성`.
 
 ## Where Projects Are Saved
 
@@ -88,4 +94,3 @@ Inside the app, click `폴더 열기` to open this folder directly.
 By default, the app stores only the original image path to save disk space.
 
 If you enable `이미지를 프로젝트에 복사 저장`, the image is copied into the project folder. This makes projects easier to move, but uses more disk space.
-

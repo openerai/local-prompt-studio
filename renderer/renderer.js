@@ -31,6 +31,7 @@ const copyImagesInput = document.getElementById('copyImages');
 const checkEnvironmentButton = document.getElementById('checkEnvironment');
 const prepareEnvironmentButton = document.getElementById('prepareEnvironment');
 const refreshModelsButton = document.getElementById('refreshModels');
+const testModelButton = document.getElementById('testModel');
 const modelFolderPath = document.getElementById('modelFolderPath');
 const modelList = document.getElementById('modelList');
 const modelHint = document.getElementById('modelHint');
@@ -78,6 +79,31 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function localModelText(value) {
+  return String(value || '').replace(/LM Studio/g, '로컬 모델 실행기');
+}
+
+function imageToPngDataUrl(dataUrl, maxSide = 1400) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
+      const width = Math.max(1, Math.round(sourceWidth * scale));
+      const height = Math.max(1, Math.round(sourceHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    image.onerror = () => reject(new Error('IMAGE_CONVERSION_FAILED'));
+    image.src = dataUrl;
+  });
 }
 
 function getNsfwMode() {
@@ -333,17 +359,17 @@ async function addImage(filePath) {
 function renderModels() {
   const savedModel = localStorage.getItem('selectedLmStudioModel');
   const previousModel = state.selectedModel ? state.selectedModel.model : savedModel;
-  const visibleModels = state.models.filter((model) => model.source === 'lmstudio-loaded' || model.source === 'lmstudio-api');
+  const visibleModels = state.models.filter((model) => model.source !== 'file');
   const runnableModels = visibleModels.filter((model) => isRunnableModel(model));
   modelList.innerHTML = '';
 
   if (runnableModels.length === 0 && visibleModels.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = 'LM Studio에서 모델을 로드하거나 서버를 켠 뒤 Refresh';
+    option.textContent = '로컬 모델을 준비한 뒤 Refresh';
     modelList.appendChild(option);
     state.selectedModel = null;
-    modelHint.textContent = 'LM Studio API에서 모델을 찾지 못했습니다. LM Studio에서 모델을 Load 하고 서버를 켠 뒤 Refresh를 누르세요.';
+    modelHint.textContent = '로컬 모델을 준비한 뒤 Refresh를 누르세요.';
     return;
   }
 
@@ -364,7 +390,7 @@ function renderModels() {
 }
 
 function isRunnableModel(model) {
-  return model && model.source !== 'file' && model.provider === 'openai';
+  return model && model.source !== 'file' && (model.provider === 'openai' || model.provider === 'ollama');
 }
 
 function isVisionModel(model) {
@@ -375,8 +401,9 @@ function isVisionModel(model) {
 function displayModelName(model) {
   const badge = !isRunnableModel(model)
     ? '파일 보관됨'
-    : model.source === 'lmstudio-loaded' ? 'LM Studio loaded'
-      : model.source === 'lmstudio-api' ? 'LM Studio API'
+    : model.source === 'lmstudio-loaded' ? '로컬 실행기'
+      : model.source === 'lmstudio-api' ? '로컬 API'
+      : model.provider === 'ollama' ? 'Ollama'
       : isVisionModel(model) ? 'vision' : 'text';
   return `${model.name} · ${badge}`;
 }
@@ -390,15 +417,21 @@ function pickBestRunnableModel() {
     candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('qwen3.6')) ||
     candidates.find((model) => model.source === 'lmstudio-loaded') ||
     candidates.find((model) => model.source === 'lmstudio-api') ||
+    candidates.find((model) => model.provider === 'ollama' && isVisionModel(model)) ||
+    candidates.find((model) => model.provider === 'ollama') ||
     null;
 }
 
 function updateModelHint() {
   if (!state.selectedModel) {
-    modelHint.textContent = 'LM Studio에서 모델을 Load 하거나 서버를 켠 뒤 Refresh를 누르세요.';
+    modelHint.textContent = '로컬 모델을 준비한 뒤 Refresh를 누르세요.';
     return;
   }
-  modelHint.textContent = `LM Studio에서 감지된 모델입니다. 이미지 분석이 안 되면 LM Studio에서 Vision 모델을 Load 했는지 확인하세요. · ${state.selectedModel.model}`;
+  if (state.selectedModel.provider === 'ollama') {
+    modelHint.textContent = `Ollama에서 감지된 모델입니다. 이미지 분석에는 llava, bakllava, moondream 같은 Vision 모델이 필요합니다. · ${state.selectedModel.model}`;
+    return;
+  }
+  modelHint.textContent = `로컬 모델 실행기에서 감지된 모델입니다. 이미지 분석이 안 되면 Vision/VL 모델인지 확인하세요. · ${state.selectedModel.model}`;
 }
 
 async function loadModelFolder(folderPath = null) {
@@ -408,7 +441,7 @@ async function loadModelFolder(folderPath = null) {
   if (state.modelFolderPath) {
     localStorage.setItem('modelFolderPath', state.modelFolderPath);
   }
-  modelFolderPath.textContent = '모델 다운로드/추가/로드는 LM Studio에서 관리합니다.';
+  modelFolderPath.textContent = '모델 다운로드/추가/로드는 로컬 모델 실행기에서 관리합니다.';
   renderModels();
 }
 
@@ -499,12 +532,12 @@ function renderEnvironmentReport(report) {
   envReport.hidden = false;
   envReport.className = `env-report ${report.status || ''}`.trim();
   envReport.innerHTML = `
-    <strong>${escapeHtml(report.recommendation)}</strong>
+    <strong>${escapeHtml(localModelText(report.recommendation))}</strong>
     <div class="check-grid">
       ${report.checks.map((item) => `
         <span class="${item.ok ? 'ok' : 'warn'}">${item.ok ? 'OK' : '필요'}</span>
-        <span>${escapeHtml(item.label)}</span>
-        <small>${escapeHtml(item.detail)}</small>
+        <span>${escapeHtml(localModelText(item.label))}</span>
+        <small>${escapeHtml(localModelText(item.detail))}</small>
       `).join('')}
     </div>
   `;
@@ -512,15 +545,15 @@ function renderEnvironmentReport(report) {
 
 function setupDialogContent(report = null, reason = '') {
   const checks = report && Array.isArray(report.checks) ? report.checks : [];
-  const missing = checks.filter((item) => !item.ok).map((item) => item.label);
+  const missing = checks.filter((item) => !item.ok).map((item) => localModelText(item.label));
   const loadedModels = report && report.models && report.models.lmStudioLoaded ? report.models.lmStudioLoaded : [];
   return `
-    <p>${escapeHtml(reason || report && report.recommendation || 'LM Studio 설정을 먼저 완료해야 합니다.')}</p>
+    <p>${escapeHtml(localModelText(reason || report && report.recommendation || '로컬 모델 설정을 먼저 완료해야 합니다.'))}</p>
     <ol>
-      <li>LM Studio를 설치합니다.</li>
-      <li>LM Studio에서 비전 모델을 다운로드하거나 GGUF를 import합니다.</li>
+      <li>로컬 모델 실행기를 설치하거나 실행합니다.</li>
+      <li>비전 모델을 다운로드하거나 GGUF를 import합니다.</li>
       <li>필요한 경우 mmproj/projector 파일을 연결합니다.</li>
-      <li>LM Studio에서 모델을 Load 합니다.</li>
+      <li>모델을 Load 합니다.</li>
       <li>이 앱에서 Refresh를 누릅니다.</li>
     </ol>
     ${missing.length ? `<p><strong>필요한 항목:</strong> ${escapeHtml(missing.join(', '))}</p>` : ''}
@@ -529,7 +562,7 @@ function setupDialogContent(report = null, reason = '') {
 }
 
 function showSetupDialog(report = null, reason = '') {
-  setupTitle.textContent = 'LM Studio 준비가 필요합니다';
+  setupTitle.textContent = '로컬 모델 준비가 필요합니다';
   setupBody.innerHTML = setupDialogContent(report, reason);
   if (typeof setupDialog.showModal === 'function') setupDialog.showModal();
   else setupDialog.setAttribute('open', '');
@@ -543,8 +576,11 @@ function closeSetupDialog() {
 function friendlyError(error) {
   const message = String(error && error.message || error || '');
   if (message.includes('ENOTDIR')) return '앱의 모델 폴더 경로가 손상되어 기본 폴더로 복구했습니다. Refresh를 한 번 더 눌러 주세요.';
-  if (message.includes('LM_STUDIO_SERVER_NOT_READY')) return 'LM Studio 서버를 자동으로 켜지 못했습니다. LM Studio 앱을 한 번 열고 다시 생성해 주세요.';
-  if (message.includes('EMPTY_MODEL_RESPONSE')) return '모델이 빈 답변을 반환했습니다. LM Studio에서 vision/projector 설정을 확인해 주세요.';
+  if (message.includes('LM_STUDIO_MODEL_CRASHED')) return '선택한 모델이 실행 중 중단되었습니다. 이 모델을 Unload한 뒤 다시 Load하거나, 더 작은 Vision 모델을 선택해 주세요.';
+  if (message.toLowerCase().includes('model reloaded')) return '로컬 모델 실행기가 모델을 다시 로드했습니다. 잠시 후 프롬프트 생성을 한 번 더 눌러 주세요.';
+  if (message.toLowerCase().includes('image') && message.toLowerCase().includes('unsupported')) return '선택한 모델이 이미지 입력을 지원하지 않는 것 같습니다. Vision/VL 모델을 Load한 뒤 Refresh를 눌러 주세요.';
+  if (message.includes('LM_STUDIO_SERVER_NOT_READY')) return '로컬 모델 서버를 자동으로 켜지 못했습니다. 모델 실행기를 한 번 열고 다시 생성해 주세요.';
+  if (message.includes('EMPTY_MODEL_RESPONSE')) return '모델이 빈 답변을 반환했습니다. vision/projector 설정을 확인해 주세요.';
   return '프롬프트 생성에 실패했습니다. 환경 체크 후 모델을 다시 선택해 주세요.';
 }
 
@@ -557,8 +593,8 @@ async function generatePrompt(event) {
   if (!state.selectedModel) {
     state.selectedModel = pickBestRunnableModel();
     if (!state.selectedModel) {
-      setStatus('LM Studio에서 로드된 모델이 없습니다.', 'error');
-      showSetupDialog(null, 'LM Studio에 로드된 모델이 없습니다.');
+      setStatus('로드된 로컬 모델이 없습니다.', 'error');
+      showSetupDialog(null, '로드된 로컬 모델이 없습니다.');
       return;
     }
   }
@@ -566,8 +602,12 @@ async function generatePrompt(event) {
   generateButton.disabled = true;
   setStatus('모델 실행기를 자동으로 연결하고 이미지를 분석하는 중입니다...');
   try {
+    const imageDataUrl = state.previewDataUrl
+      ? await imageToPngDataUrl(state.previewDataUrl)
+      : null;
     const result = await window.promptStudio.generatePrompt({
       filePath: state.activeItem.filePath,
+      imageDataUrl,
       provider: state.selectedModel.provider,
       baseUrl: state.selectedModel.endpoint,
       model: state.selectedModel.model,
@@ -673,7 +713,7 @@ itemList.addEventListener('click', async (event) => {
 
 checkEnvironmentButton.addEventListener('click', async () => {
   checkEnvironmentButton.disabled = true;
-  setStatus('LM Studio 실행 환경을 확인하는 중입니다...');
+  setStatus('로컬 모델 실행 환경을 확인하는 중입니다...');
   try {
     const report = await window.promptStudio.checkEnvironment(state.modelFolderPath);
     renderEnvironmentReport(report);
@@ -689,7 +729,7 @@ checkEnvironmentButton.addEventListener('click', async () => {
 prepareEnvironmentButton.addEventListener('click', async () => {
   prepareEnvironmentButton.disabled = true;
   try {
-    setStatus('LM Studio 설치/서버 상태를 자동으로 준비하는 중입니다...');
+    setStatus('로컬 모델 실행기 상태를 자동으로 준비하는 중입니다...');
     const report = await window.promptStudio.prepareEnvironment(state.modelFolderPath);
     renderEnvironmentReport(report);
     await loadModelFolder(state.modelFolderPath);
@@ -697,7 +737,7 @@ prepareEnvironmentButton.addEventListener('click', async () => {
     if (report.status !== 'ready') showSetupDialog(report);
   } catch (error) {
     setStatus(error.message, 'error');
-    showSetupDialog(null, '자동 준비 중 문제가 생겼습니다. LM Studio를 직접 설치하거나 실행한 뒤 다시 시도해 주세요.');
+    showSetupDialog(null, '자동 준비 중 문제가 생겼습니다. 로컬 모델 실행기를 직접 설치하거나 실행한 뒤 다시 시도해 주세요.');
   } finally {
     prepareEnvironmentButton.disabled = false;
   }
@@ -705,6 +745,35 @@ prepareEnvironmentButton.addEventListener('click', async () => {
 
 refreshModelsButton.addEventListener('click', async () => {
   await loadModelFolder(state.modelFolderPath);
+});
+
+testModelButton.addEventListener('click', async () => {
+  if (!state.selectedModel) {
+    state.selectedModel = pickBestRunnableModel();
+  }
+  if (!state.selectedModel) {
+    setStatus('테스트할 로컬 모델이 없습니다. 모델을 Load한 뒤 Refresh를 눌러 주세요.', 'error');
+    return;
+  }
+
+  testModelButton.disabled = true;
+  setStatus('선택한 모델이 이미지 입력을 처리할 수 있는지 테스트하는 중입니다...');
+  try {
+    const result = await window.promptStudio.testModel({
+      model: state.selectedModel.model,
+      baseUrl: state.selectedModel.endpoint,
+      selectedModel: state.selectedModel
+    });
+    const ok = result && result.status === 'ready';
+    const action = result && result.status === 'action';
+    const message = result && result.message ? result.message : '모델 테스트 결과를 받지 못했습니다.';
+    modelHint.textContent = message;
+    setStatus(message, ok ? 'ok' : action ? '' : 'error');
+  } catch (error) {
+    setStatus(friendlyError(error), 'error');
+  } finally {
+    testModelButton.disabled = false;
+  }
 });
 
 modelList.addEventListener('change', () => {

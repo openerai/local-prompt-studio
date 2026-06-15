@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -112,17 +112,92 @@ async function checkForUpdates({ manual = false } = {}) {
   return { status: 'checking', message: '업데이트 확인을 시작했습니다.' };
 }
 
+function setupRequiredAutoUpdater(win) {
+  autoUpdater.autoDownload = true;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('update-available', (info) => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('updates:status', {
+      status: 'checking',
+      message: `새 버전 ${info.version}을 다운로드하는 중입니다.`
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('updates:status', {
+      status: 'current',
+      message: '현재 최신 버전입니다.'
+    });
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    if (!win || win.isDestroyed()) {
+      autoUpdater.quitAndInstall(false, true);
+      return;
+    }
+
+    await dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['재시작 및 설치'],
+      defaultId: 0,
+      cancelId: 0,
+      title: '업데이트 설치 필요',
+      message: `Local Prompt Studio ${info.version} 버전이 준비되었습니다.`,
+      detail: '최신 기능과 오류 수정을 적용하려면 앱을 재시작해야 합니다. 확인을 누르면 새 버전이 설치됩니다.'
+    });
+    autoUpdater.quitAndInstall(false, true);
+  });
+
+  autoUpdater.on('error', (error) => {
+    const message = String(error && error.message || error || '');
+    if (!win || win.isDestroyed()) return;
+    const hasNoRelease = message.includes('No published versions') || message.includes('No releases found');
+    win.webContents.send('updates:status', {
+      status: hasNoRelease ? 'current' : 'error',
+      message: hasNoRelease
+        ? '아직 GitHub Release가 없습니다. 첫 배포 파일을 올리면 업데이트 확인이 작동합니다.'
+        : `업데이트 확인 실패: ${message}`
+    });
+  });
+}
+
+async function checkRequiredUpdates({ manual = false } = {}) {
+  if (!app.isPackaged) {
+    const message = '자동 업데이트는 설치된 앱에서만 작동합니다. 개발 실행에서는 GitHub Release 확인을 건너뜁니다.';
+    if (manual && mainWindow && !mainWindow.isDestroyed()) {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: '개발 모드',
+        message
+      });
+    }
+    return { status: 'dev', message };
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updates:status', {
+      status: 'checking',
+      message: '업데이트를 확인하는 중입니다...'
+    });
+  }
+
+  await autoUpdater.checkForUpdates();
+  return { status: 'checking', message: '업데이트 확인을 시작했습니다.' };
+}
+
 app.whenReady().then(() => {
   const win = createWindow();
-  setupAutoUpdater(win);
+  setupRequiredAutoUpdater(win);
   setTimeout(() => {
-    checkForUpdates({ manual: false }).catch(() => {});
+    checkRequiredUpdates({ manual: false }).catch(() => {});
   }, 3000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       const nextWin = createWindow();
-      setupAutoUpdater(nextWin);
+      setupRequiredAutoUpdater(nextWin);
     }
   });
 });
@@ -131,7 +206,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('updates:check', async () => checkForUpdates({ manual: true }));
+ipcMain.handle('updates:check', async () => checkRequiredUpdates({ manual: true }));
 
 ipcMain.handle('updates:install', () => {
   autoUpdater.quitAndInstall();
@@ -139,6 +214,36 @@ ipcMain.handle('updates:install', () => {
 
 function isImagePath(filePath) {
   return IMAGE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+async function readImageForModel(filePath) {
+  const image = nativeImage.createFromPath(filePath);
+  if (!image.isEmpty()) {
+    const size = image.getSize();
+    const maxSide = Math.max(size.width || 0, size.height || 0);
+    const prepared = maxSide > 1400
+      ? image.resize({
+        width: size.width >= size.height ? 1400 : undefined,
+        height: size.height > size.width ? 1400 : undefined,
+        quality: 'good'
+      })
+      : image;
+    const png = prepared.toPNG();
+    const imageBase64 = png.toString('base64');
+    return {
+      imageBase64,
+      imageDataUrl: `data:image/png;base64,${imageBase64}`
+    };
+  }
+
+  const bytes = await fs.readFile(filePath);
+  const imageBase64 = bytes.toString('base64');
+  const ext = path.extname(filePath).toLowerCase().replace('.', '') || 'png';
+  const mime = ext === 'jpg' ? 'jpeg' : ext;
+  return {
+    imageBase64,
+    imageDataUrl: `data:image/${mime};base64,${imageBase64}`
+  };
 }
 
 function defaultModelFolder() {
@@ -615,13 +720,14 @@ async function fetchOllamaModels() {
 async function scanModelFolder(folderPath) {
   const targetFolder = await resolveModelFolder(folderPath);
   await fs.mkdir(targetFolder, { recursive: true });
-  const [lmStudioModels, fileModels] = await Promise.all([
+  const [lmStudioModels, ollamaModels, fileModels] = await Promise.all([
     fetchLMStudioModels(),
+    fetchOllamaModels(),
     scanModelFiles(targetFolder)
   ]);
 
   const names = new Set();
-  const models = [...lmStudioModels, ...fileModels].filter((model) => {
+  const models = [...lmStudioModels, ...ollamaModels, ...fileModels].filter((model) => {
     const key = `${model.provider}:${model.model}:${model.filePath || ''}`;
     if (names.has(key)) return false;
     names.add(key);
@@ -852,6 +958,24 @@ async function postJson(url, body, apiKey) {
   return response.json();
 }
 
+function isModelReloadError(error) {
+  return String(error && error.message || error || '').toLowerCase().includes('model reloaded');
+}
+
+function isModelCrashError(error) {
+  const message = String(error && error.message || error || '').toLowerCase();
+  return message.includes('model has crashed') || message.includes('exit code');
+}
+
+function isBase64ImageUrlError(error) {
+  const message = String(error && error.message || error || '').toLowerCase();
+  return message.includes('url') && message.includes('base64 encoded image');
+}
+
+function stripDataUrl(value) {
+  return String(value || '').replace(/^data:image\/[a-z0-9.+-]+;base64,/i, '');
+}
+
 async function runOllama({ baseUrl, model, prompt, imageBase64 }) {
   const ready = await startOllamaServer();
   if (!ready) {
@@ -898,8 +1022,8 @@ async function runOpenAICompatible({ baseUrl, apiKey, model, prompt, imageDataUr
     if (!ready) throw new Error('LM_STUDIO_SERVER_NOT_READY');
   }
 
-  async function request(textPrompt) {
-    return postJson(`${normalizedBaseUrl}/chat/completions`, {
+  async function request(textPrompt, imageUrl = imageDataUrl) {
+    const body = {
       model,
       temperature: 0.35,
       max_tokens: 2600,
@@ -908,11 +1032,27 @@ async function runOpenAICompatible({ baseUrl, apiKey, model, prompt, imageDataUr
           role: 'user',
           content: [
             { type: 'text', text: textPrompt },
-            { type: 'image_url', image_url: { url: imageDataUrl } }
+            { type: 'image_url', image_url: { url: imageUrl } }
           ]
         }
       ]
-    }, apiKey);
+    };
+
+    try {
+      return await postJson(`${normalizedBaseUrl}/chat/completions`, body, apiKey);
+    } catch (error) {
+      if (isModelReloadError(error)) {
+        await wait(1600);
+        return postJson(`${normalizedBaseUrl}/chat/completions`, body, apiKey);
+      }
+      if (isBase64ImageUrlError(error) && imageUrl !== stripDataUrl(imageDataUrl)) {
+        return request(textPrompt, stripDataUrl(imageDataUrl));
+      }
+      if (isModelCrashError(error)) {
+        throw new Error(`LM_STUDIO_MODEL_CRASHED ${model}`);
+      }
+      throw error;
+    }
   }
 
   const first = await request(prompt);
@@ -929,6 +1069,147 @@ async function runOpenAICompatible({ baseUrl, apiKey, model, prompt, imageDataUr
   const second = await request(fallbackPrompt || prompt);
   const secondContent = readOpenAIContent(second);
   return normalizeTextResult(secondContent);
+}
+
+async function testOpenAIModel({ baseUrl, apiKey, model }) {
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl, DEFAULT_OPENAI_URL);
+  if (normalizedBaseUrl === DEFAULT_OPENAI_URL) {
+    const ready = await startLMStudioServer();
+    if (!ready) {
+      return {
+        status: 'blocked',
+        message: 'LM Studio 서버가 준비되지 않았습니다. LM Studio를 열고 모델을 Load한 뒤 다시 테스트하세요.'
+      };
+    }
+  }
+
+  const tinyImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+
+  async function runOnce(imageUrl = tinyImage) {
+    const body = {
+      model,
+      temperature: 0.1,
+      max_tokens: 80,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'This is a connection test. Reply with one short sentence describing the image.' },
+            { type: 'image_url', image_url: { url: imageUrl } }
+          ]
+        }
+      ]
+    };
+    const json = await postJson(`${normalizedBaseUrl}/chat/completions`, body, apiKey);
+    return readOpenAIContent(json);
+  }
+
+  try {
+    let content = '';
+    try {
+      content = await runOnce();
+    } catch (error) {
+      if (isBase64ImageUrlError(error)) {
+        content = await runOnce(stripDataUrl(tinyImage));
+      } else
+      if (!isModelReloadError(error)) throw error;
+      else {
+        await wait(1600);
+        content = await runOnce();
+      }
+    }
+
+    if (!String(content || '').trim()) {
+      return {
+        status: 'action',
+        message: '모델은 응답했지만 내용이 비어 있습니다. 다른 Vision 모델을 선택하거나 LM Studio에서 모델을 다시 Load해 보세요.'
+      };
+    }
+
+    return {
+      status: 'ready',
+      message: '모델 테스트 성공. 이 모델은 현재 이미지 입력에 응답했습니다.'
+    };
+  } catch (error) {
+    const message = String(error && error.message || error || '');
+    const lower = message.toLowerCase();
+    if (isModelCrashError(error)) {
+      return {
+        status: 'blocked',
+        message: '모델이 테스트 중 중단되었습니다. 이 PC/설정에서는 현재 모델이 불안정합니다. LM Studio에서 Unload 후 다시 Load하거나 더 작은 Vision 모델을 선택하세요.'
+      };
+    }
+    if (isModelReloadError(error)) {
+      return {
+        status: 'action',
+        message: 'LM Studio가 모델을 다시 로드했습니다. 잠시 후 테스트를 다시 눌러 주세요.'
+      };
+    }
+    if (lower.includes('unsupported') || lower.includes('image') && lower.includes('support')) {
+      return {
+        status: 'blocked',
+        message: '선택한 모델이 이미지 입력을 지원하지 않는 것 같습니다. Vision/VL 모델을 Load한 뒤 Refresh를 눌러 주세요.'
+      };
+    }
+    if (lower.includes('unreachable') || lower.includes('fetch failed')) {
+      return {
+        status: 'blocked',
+        message: 'LM Studio 서버에 연결하지 못했습니다. LM Studio Local Server가 켜져 있는지 확인하세요.'
+      };
+    }
+    return {
+      status: 'blocked',
+      message: `모델 테스트 실패: ${message.slice(0, 260)}`
+    };
+  }
+}
+
+async function testOllamaModel({ baseUrl, model }) {
+  const ready = await startOllamaServer();
+  if (!ready) {
+    return {
+      status: 'blocked',
+      message: 'Ollama 서버가 준비되지 않았습니다. Ollama를 설치하거나 실행한 뒤 다시 테스트하세요.'
+    };
+  }
+
+  const tinyImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+  try {
+    const json = await postJson(`${normalizeBaseUrl(baseUrl, DEFAULT_OLLAMA_URL)}/api/generate`, {
+      model,
+      prompt: 'This is a connection test. Reply with one short sentence describing the image.',
+      images: [tinyImage],
+      stream: false,
+      options: {
+        temperature: 0.1,
+        num_ctx: 1024
+      }
+    });
+    const response = String(json && json.response || '').trim();
+    if (!response) {
+      return {
+        status: 'action',
+        message: 'Ollama 모델은 응답했지만 내용이 비어 있습니다. Vision 모델인지 확인하거나 다른 모델을 선택하세요.'
+      };
+    }
+    return {
+      status: 'ready',
+      message: 'Ollama 모델 테스트 성공. 이 모델은 현재 이미지 입력에 응답했습니다.'
+    };
+  } catch (error) {
+    const message = String(error && error.message || error || '');
+    const lower = message.toLowerCase();
+    if (lower.includes('does not support images') || lower.includes('vision') || lower.includes('image')) {
+      return {
+        status: 'blocked',
+        message: '선택한 Ollama 모델이 이미지 입력을 지원하지 않는 것 같습니다. llava, bakllava, moondream 같은 Vision 모델을 선택하세요.'
+      };
+    }
+    return {
+      status: 'blocked',
+      message: `Ollama 모델 테스트 실패: ${message.slice(0, 260)}`
+    };
+  }
 }
 
 ipcMain.handle('images:pick', async () => {
@@ -1070,6 +1351,32 @@ ipcMain.handle('models:pickFolder', async () => {
 ipcMain.handle('models:scan', async (_event, folderPath) => scanModelFolder(folderPath));
 ipcMain.handle('env:check', async (_event, folderPath) => checkEnvironment(folderPath));
 ipcMain.handle('env:prepare', async (_event, folderPath) => prepareLMStudioEnvironment(folderPath));
+ipcMain.handle('models:test', async (_event, payload) => {
+  const selectedModel = payload && payload.selectedModel && typeof payload.selectedModel === 'object'
+    ? payload.selectedModel
+    : null;
+  const model = String(payload && payload.model || selectedModel && selectedModel.model || '').trim();
+  if (!model) {
+    return {
+      status: 'blocked',
+      message: '테스트할 모델이 선택되지 않았습니다.'
+    };
+  }
+
+  const provider = selectedModel ? selectedModel.provider : payload && payload.provider;
+  if (provider === 'ollama') {
+    return testOllamaModel({
+      baseUrl: payload && payload.baseUrl || selectedModel && selectedModel.endpoint || DEFAULT_OLLAMA_URL,
+      model
+    });
+  }
+
+  return testOpenAIModel({
+    baseUrl: payload && payload.baseUrl || selectedModel && selectedModel.endpoint || DEFAULT_OPENAI_URL,
+    apiKey: payload && payload.apiKey,
+    model
+  });
+});
 
 ipcMain.handle('models:addFiles', async (_event, folderPath) => {
   const targetFolder = await resolveModelFolder(folderPath);
@@ -1114,11 +1421,16 @@ ipcMain.handle('prompt:generate', async (_event, payload) => {
     throw new Error(`RAW_MODEL_FILE_SELECTED ${selectedModel.name}`);
   }
 
-  const bytes = await fs.readFile(filePath);
-  const imageBase64 = bytes.toString('base64');
-  const ext = path.extname(filePath).toLowerCase().replace('.', '') || 'png';
-  const mime = ext === 'jpg' ? 'jpeg' : ext;
-  const imageDataUrl = `data:image/${mime};base64,${imageBase64}`;
+  const providedImageDataUrl = typeof payload.imageDataUrl === 'string' && payload.imageDataUrl.startsWith('data:image/')
+    ? payload.imageDataUrl
+    : '';
+  const preparedImage = providedImageDataUrl
+    ? {
+      imageBase64: stripDataUrl(providedImageDataUrl),
+      imageDataUrl: providedImageDataUrl
+    }
+    : await readImageForModel(filePath);
+  const { imageBase64, imageDataUrl } = preparedImage;
   const prompt = buildAnalysisPrompt(payload.options || {});
   const fallbackPrompt = buildFallbackPrompt(payload.options || {});
 
