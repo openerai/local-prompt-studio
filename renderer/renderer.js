@@ -1,4 +1,4 @@
-const state = {
+﻿const state = {
   projects: [],
   project: null,
   activeItem: null,
@@ -53,6 +53,7 @@ const setupBody = document.getElementById('setupBody');
 const closeSetupDialogButton = document.getElementById('closeSetupDialog');
 const dismissSetupDialogButton = document.getElementById('dismissSetupDialog');
 const prepareFromDialogButton = document.getElementById('prepareFromDialog');
+const appVersion = document.getElementById('appVersion');
 
 function relocateProjectActions() {
   const actions = document.querySelector('.workspace-actions');
@@ -410,15 +411,15 @@ function displayModelName(model) {
 
 function pickBestRunnableModel() {
   const candidates = state.models.filter((model) => isRunnableModel(model));
-  return candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('hauhaucs')) ||
+  return candidates.find((model) => model.provider === 'ollama' && isVisionModel(model)) ||
+    candidates.find((model) => model.provider === 'ollama') ||
+    candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('hauhaucs')) ||
     candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('vl')) ||
     candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('vision')) ||
     candidates.find((model) => model.source === 'lmstudio-api' && model.model.toLowerCase().includes('qwen')) ||
     candidates.find((model) => model.source === 'lmstudio-loaded' && model.model.toLowerCase().includes('qwen3.6')) ||
     candidates.find((model) => model.source === 'lmstudio-loaded') ||
     candidates.find((model) => model.source === 'lmstudio-api') ||
-    candidates.find((model) => model.provider === 'ollama' && isVisionModel(model)) ||
-    candidates.find((model) => model.provider === 'ollama') ||
     null;
 }
 
@@ -848,6 +849,13 @@ window.promptStudio.onUpdateStatus((payload) => {
 
 (async function init() {
   relocateProjectActions();
+  if (appVersion && window.promptStudio.getVersion) {
+    try {
+      appVersion.textContent = `v${await window.promptStudio.getVersion()}`;
+    } catch (_error) {
+      appVersion.textContent = '';
+    }
+  }
   await loadProjects();
   if (state.projects[0]) await loadProject(state.projects[0].id);
   else renderAll();

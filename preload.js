@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('promptStudio', {
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
   pickImage: () => ipcRenderer.invoke('images:pick'),
   loadPreview: (filePath) => ipcRenderer.invoke('image:preview', filePath),
   loadThumbnail: (filePath) => ipcRenderer.invoke('image:thumbnail', filePath),

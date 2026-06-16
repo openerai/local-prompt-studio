@@ -212,6 +212,8 @@ ipcMain.handle('updates:install', () => {
   autoUpdater.quitAndInstall();
 });
 
+ipcMain.handle('app:getVersion', () => app.getVersion());
+
 function isImagePath(filePath) {
   return IMAGE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }

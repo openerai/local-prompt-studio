@@ -93,6 +93,12 @@ button:disabled {
   line-height: 1.35;
 }
 
+.app-version {
+  color: var(--gold-bright);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .project-actions {
   display: grid;
   gap: 6px;

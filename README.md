@@ -2,12 +2,14 @@
 
 Local Prompt Studio is a Windows desktop app that turns reference images into reusable image-generation prompts with a local vision model.
 
-The app is designed for people who want a simple local workflow:
+The recommended workflow is now **Ollama first**:
 
-1. Run a local model server such as LM Studio or Ollama.
-2. Drag an image into Local Prompt Studio.
-3. Generate prompts in tag, sentence, or structured system-prompt format.
-4. Save projects with image references and prompt history.
+1. Install Ollama.
+2. Download a vision model in Ollama.
+3. Open Local Prompt Studio.
+4. Press `Refresh` and choose the detected Ollama model.
+5. Drag an image into the workspace.
+6. Generate prompts in tag, sentence, or structured system-prompt format.
 
 ## Download
 
@@ -21,34 +23,91 @@ Open the newest release, download the Windows `.exe` installer from `Assets`, an
 
 Do not use the green `Code` button unless you are a developer. That downloads the source code, not the easy installer.
 
-## Local Model Requirement
+## Quick Start With Ollama
 
-Local Prompt Studio does not run GGUF, safetensors, or model files directly.
+### 1. Install Ollama
 
-Use one of these local model runners:
+Download Ollama from:
 
-- LM Studio with a loaded vision model and local server enabled
-- Ollama with a vision model such as `llava`, `bakllava`, `moondream`, or another image-capable model
+```text
+https://ollama.com/
+```
+
+Install it, then restart the PC if Windows asks you to.
+
+### 2. Install a Vision Model
+
+Open PowerShell and run one of these commands:
+
+```powershell
+ollama pull llava
+```
+
+Other image-capable model names can also work, depending on your PC and Ollama support:
+
+```powershell
+ollama pull bakllava
+ollama pull moondream
+```
+
+Text-only models cannot analyze images. Use a Vision/VL/multimodal model.
+
+### 3. Confirm Ollama Is Running
+
+Ollama normally runs locally at:
+
+```text
+http://127.0.0.1:11434
+```
+
+This is a local address on your own computer. It is not a public internet address.
+
+You can test Ollama in PowerShell:
+
+```powershell
+ollama list
+```
+
+If the model appears in the list, Local Prompt Studio should be able to detect it after pressing `Refresh`.
+
+### 4. Use Local Prompt Studio
+
+1. Open Local Prompt Studio.
+2. Press `환경 체크`.
+3. Press `Refresh`.
+4. Select an Ollama model from the model list.
+5. Press `모델 테스트` if available.
+6. Drag an image into the workspace.
+7. Choose an output style:
+   - 태그형
+   - 문장형
+   - 시스템 프롬프트형
+8. Press `프롬프트 생성`.
+
+## LM Studio
+
+LM Studio can still be used as an advanced alternative, but it is no longer the main recommended path.
 
 Default local endpoints:
 
 ```text
-LM Studio: http://127.0.0.1:1234/v1
 Ollama:    http://127.0.0.1:11434
+LM Studio: http://127.0.0.1:1234/v1
 ```
 
-Inside the app, click `환경 체크`, then `Refresh`, then choose a detected model.
+Keep local model servers bound to `127.0.0.1` or `localhost` unless you know exactly why you need network access.
 
 ## Features
 
-- Local-first image prompt generation
-- LM Studio and Ollama model detection
+- Ollama-first local model workflow
+- LM Studio compatibility for advanced users
 - Model test button for checking whether image input works
 - Drag-and-drop image workspace
 - WebP image conversion before model requests
 - Project save/load with prompt history per image
 - Optional image copy mode for portable projects
 - GitHub Releases based automatic updates
+- Version display inside the app
 - Output styles:
   - Tag style
   - Sentence style

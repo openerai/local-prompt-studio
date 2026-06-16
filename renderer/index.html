@@ -11,7 +11,8 @@
       <aside class="sidebar">
         <div class="brand">
           <h1>Local Prompt Studio</h1>
-          <p>로컬 모델 기반 이미지 프롬프트 작업공간</p>
+          <p>Ollama 기반 이미지 프롬프트 작업공간</p>
+          <span id="appVersion" class="app-version">v...</span>
         </div>
 
         <div class="project-actions">
@@ -68,28 +69,28 @@
           <form id="settings" class="settings">
             <section class="model-panel">
               <div class="section-title">
-                <span>로컬 모델 연결</span>
+                <span>Ollama 연결</span>
                 <div class="button-group">
                   <button id="checkEnvironment" class="secondary" type="button">환경 체크</button>
                   <button id="prepareEnvironment" class="secondary" type="button">자동 준비</button>
                 </div>
               </div>
-              <div id="modelFolderPath" class="folder-path">모델 다운로드/추가/로드는 로컬 모델 실행기에서 관리합니다.</div>
+              <div id="modelFolderPath" class="folder-path">Ollama를 설치하고 Vision 모델을 받은 뒤 Refresh를 누르세요.</div>
               <div id="envReport" class="env-report" hidden></div>
               <label>
-              <span class="label-row">
-                로컬 모델
-                <span class="inline-actions">
-                  <button id="refreshModels" class="link-button" type="button">Refresh</button>
-                  <button id="testModel" class="link-button" type="button">모델 테스트</button>
+                <span class="label-row">
+                  로컬 모델
+                  <span class="inline-actions">
+                    <button id="refreshModels" class="link-button" type="button">Refresh</button>
+                    <button id="testModel" class="link-button" type="button">모델 테스트</button>
+                  </span>
                 </span>
-              </span>
                 <select id="modelList">
-                  <option value="">로컬 모델을 준비한 뒤 Refresh를 누르세요</option>
+                  <option value="">Ollama 모델을 준비한 뒤 Refresh를 누르세요</option>
                 </select>
               </label>
               <div id="modelHint" class="hint">
-                로컬 모델을 불러올 수 있습니다. 이미지 분석에는 Vision/VL 모델이 필요합니다.
+                이미지 분석에는 Vision/VL 모델이 필요합니다. 예: llava, bakllava, moondream, qwen-vl 계열
               </div>
             </section>
 
@@ -134,21 +135,21 @@
             <div id="status" class="status">프로젝트를 만들고 이미지를 드롭하세요.</div>
           </form>
 
-        <section class="results">
-          <div class="result-head">
-            <h2>결과</h2>
-            <span id="safetyBadge" class="badge">대기</span>
-          </div>
+          <section class="results">
+            <div class="result-head">
+              <h2>결과</h2>
+              <span id="safetyBadge" class="badge">대기</span>
+            </div>
 
-          <div id="historyList" class="history-list" aria-label="생성 히스토리"></div>
+            <div id="historyList" class="history-list" aria-label="생성 히스토리"></div>
 
-          <div class="output-wrap">
-            <textarea id="output" spellcheck="false" placeholder="생성 결과가 여기에 표시됩니다."></textarea>
-            <button id="copyOutput" type="button">복사</button>
-          </div>
+            <div class="output-wrap">
+              <textarea id="output" spellcheck="false" placeholder="생성 결과가 여기에 표시됩니다."></textarea>
+              <button id="copyOutput" type="button">복사</button>
+            </div>
 
-          <div id="tips" class="tips"></div>
-        </section>
+            <div id="tips" class="tips"></div>
+          </section>
         </section>
       </section>
     </main>
