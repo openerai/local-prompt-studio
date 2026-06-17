@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('promptStudio', {
   importProject: () => ipcRenderer.invoke('projects:import'),
   openProjectsFolder: () => ipcRenderer.invoke('projects:openFolder'),
   addImageToProject: (payload) => ipcRenderer.invoke('projects:addImage', payload),
+  addDroppedImageToProject: (payload) => ipcRenderer.invoke('projects:addDroppedImage', payload),
   pickModelFolder: () => ipcRenderer.invoke('models:pickFolder'),
   scanModelFolder: (folderPath) => ipcRenderer.invoke('models:scan', folderPath),
   addModelFiles: (folderPath) => ipcRenderer.invoke('models:addFiles', folderPath),

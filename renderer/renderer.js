@@ -357,6 +357,61 @@ async function addImage(filePath) {
   setStatus('이미지를 프로젝트에 추가했습니다.', 'ok');
 }
 
+function firstDroppedImageUrl(event) {
+  const transfer = event.dataTransfer;
+  if (!transfer) return '';
+
+  const uriList = transfer.getData('text/uri-list');
+  const uri = String(uriList || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line && !line.startsWith('#'));
+  if (uri && /^https?:\/\//i.test(uri)) return uri;
+
+  const html = transfer.getData('text/html');
+  if (html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const image = doc.querySelector('img[src], source[srcset]');
+    const src = image && (image.getAttribute('src') || image.getAttribute('srcset') || '');
+    const firstSrc = String(src).split(',')[0].trim().split(/\s+/)[0];
+    if (firstSrc && /^https?:\/\//i.test(firstSrc)) return firstSrc;
+    if (firstSrc && /^data:image\//i.test(firstSrc)) return firstSrc;
+  }
+
+  const text = transfer.getData('text/plain').trim();
+  if (/^https?:\/\/.+/i.test(text) || /^data:image\//i.test(text)) return text;
+  return '';
+}
+
+function fileNameFromUrl(sourceUrl) {
+  try {
+    const parsed = new URL(sourceUrl);
+    const name = parsed.pathname.split('/').filter(Boolean).pop();
+    return name || 'dropped-image';
+  } catch (_error) {
+    return 'dropped-image';
+  }
+}
+
+async function addDroppedWebsiteImage(source) {
+  if (!source) return false;
+  if (!state.project) await createProject();
+  const isDataUrl = /^data:image\//i.test(source);
+  setStatus('웹 이미지 가져오는 중...');
+  state.project = await window.promptStudio.addDroppedImageToProject({
+    project: state.project,
+    sourceUrl: isDataUrl ? '' : source,
+    dataUrl: isDataUrl ? source : '',
+    fileName: isDataUrl ? 'dropped-image.png' : fileNameFromUrl(source)
+  });
+  state.activeItem = state.project.items.find((item) => item.id === state.project.activeItemId);
+  await loadProjects();
+  renderAll();
+  await renderActiveImage();
+  setStatus('웹 이미지를 프로젝트에 추가했습니다.', 'ok');
+  return true;
+}
+
 function renderModels() {
   const savedModel = localStorage.getItem('selectedLmStudioModel');
   const previousModel = state.selectedModel ? state.selectedModel.model : savedModel;
@@ -805,7 +860,22 @@ dropZone.addEventListener('drop', async (event) => {
   event.preventDefault();
   dropZone.classList.remove('over');
   const [file] = [...event.dataTransfer.files];
-  await addImage(file && file.path);
+  if (file && file.path) {
+    await addImage(file.path);
+    return;
+  }
+
+  const source = firstDroppedImageUrl(event);
+  if (source) {
+    try {
+      await addDroppedWebsiteImage(source);
+    } catch (error) {
+      setStatus(`웹 이미지를 가져오지 못했습니다: ${error.message}`, 'error');
+    }
+    return;
+  }
+
+  setStatus('이미지 파일이나 웹 이미지 URL을 드롭하세요.', 'error');
 });
 
 settingsForm.addEventListener('submit', generatePrompt);

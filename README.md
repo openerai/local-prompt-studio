@@ -8,7 +8,7 @@ The recommended workflow is now **Ollama first**:
 2. Download a vision model in Ollama.
 3. Open Local Prompt Studio.
 4. Press `Refresh` and choose the detected Ollama model.
-5. Drag an image into the workspace.
+5. Drag a local image or a website image into the workspace.
 6. Generate prompts in tag, sentence, or structured system-prompt format.
 
 ## Download
@@ -103,6 +103,7 @@ Keep local model servers bound to `127.0.0.1` or `localhost` unless you know exa
 - LM Studio compatibility for advanced users
 - Model test button for checking whether image input works
 - Drag-and-drop image workspace
+- Website image drag-and-drop support
 - WebP image conversion before model requests
 - Project save/load with prompt history per image
 - Optional image copy mode for portable projects

@@ -1,6 +1,6 @@
 {
   "name": "local-prompt-studio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Local desktop image-to-prompt studio for vision LLMs.",
   "main": "main.js",
   "author": "hhae0257-eng",

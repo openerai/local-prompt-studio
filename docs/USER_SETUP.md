@@ -65,7 +65,7 @@ This is a local address on the user's own computer.
 2. Click `Refresh` next to the model list.
 3. Select an Ollama model.
 4. Click `모델 테스트` if available.
-5. Drag an image into the workspace.
+5. Drag a local image file or website image into the workspace.
 6. Choose a result style:
    - Tag style
    - Sentence style
@@ -99,6 +99,8 @@ Inside the app, click `폴더 열기` to open this folder directly.
 By default, the app stores only the original image path to save disk space.
 
 If you enable `이미지를 프로젝트에 복사 저장`, the image is copied into the project folder. This makes projects easier to move, but uses more disk space.
+
+Website images are always copied into the project folder because they do not have a stable local file path.
 
 ## Version
 

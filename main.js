@@ -8,6 +8,7 @@ const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const MODEL_EXTENSIONS = new Set(['.gguf', '.safetensors', '.bin', '.pt', '.pth', '.onnx']);
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_OPENAI_URL = 'http://127.0.0.1:1234/v1';
+const MAX_DROPPED_IMAGE_BYTES = 30 * 1024 * 1024;
 let mainWindow = null;
 
 function createWindow() {
@@ -216,6 +217,100 @@ ipcMain.handle('app:getVersion', () => app.getVersion());
 
 function isImagePath(filePath) {
   return IMAGE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+function extensionFromMime(mime) {
+  const clean = String(mime || '').split(';')[0].trim().toLowerCase();
+  if (clean === 'image/jpeg' || clean === 'image/jpg') return '.jpg';
+  if (clean === 'image/png') return '.png';
+  if (clean === 'image/webp') return '.webp';
+  return '';
+}
+
+function extensionFromUrl(sourceUrl) {
+  try {
+    const parsed = new URL(sourceUrl);
+    const ext = path.extname(parsed.pathname).toLowerCase();
+    return IMAGE_EXTENSIONS.has(ext) ? ext : '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function sanitizeImageFileName(fileName, fallbackExt) {
+  const base = path.basename(String(fileName || '')).replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+  const ext = path.extname(base).toLowerCase();
+  if (ext && IMAGE_EXTENSIONS.has(ext)) return base;
+  const stem = base ? base.replace(/\.[^.]+$/, '') : 'dropped-image';
+  return `${stem || 'dropped-image'}${fallbackExt || '.png'}`;
+}
+
+function dataUrlToImageBuffer(dataUrl) {
+  const match = String(dataUrl || '').match(/^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=]+)$/i);
+  if (!match) throw new Error('Only JPG, PNG, and WebP image data can be dropped.');
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > MAX_DROPPED_IMAGE_BYTES) throw new Error('Dropped image is too large.');
+  return {
+    buffer,
+    ext: extensionFromMime(match[1]) || '.png',
+    mime: match[1].toLowerCase()
+  };
+}
+
+async function fetchImageFromUrl(sourceUrl) {
+  const parsed = new URL(sourceUrl);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only HTTP or HTTPS image URLs can be dropped from a website.');
+  }
+
+  const response = await fetch(parsed.toString(), {
+    redirect: 'follow',
+    headers: {
+      'user-agent': 'Local Prompt Studio'
+    }
+  });
+  if (!response.ok) throw new Error(`Could not download dropped image (${response.status}).`);
+
+  const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const ext = extensionFromMime(mime) || extensionFromUrl(parsed.toString());
+  if (!ext) throw new Error('The dropped URL does not look like a supported image.');
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > MAX_DROPPED_IMAGE_BYTES) throw new Error('Dropped image is too large.');
+
+  return {
+    buffer: bytes,
+    ext,
+    mime
+  };
+}
+
+async function addImageBufferToProject({ project, buffer, ext, fileName, originalSource }) {
+  if (!project || !project.id) throw new Error('Project is required.');
+  if (!buffer || !buffer.length) throw new Error('Dropped image is empty.');
+
+  const itemId = createItemId();
+  await fs.mkdir(projectAssetFolder(project.id), { recursive: true });
+  const safeName = sanitizeImageFileName(fileName, ext);
+  const savedName = `${itemId}-${safeName}`;
+  const savedPath = path.join(projectAssetFolder(project.id), savedName);
+  await fs.writeFile(savedPath, buffer);
+
+  const item = {
+    id: itemId,
+    filePath: savedPath,
+    originalFilePath: originalSource || savedPath,
+    storageMode: 'copy',
+    fileName: safeName,
+    createdAt: new Date().toISOString(),
+    result: null
+  };
+  const nextProject = {
+    ...project,
+    items: [...(Array.isArray(project.items) ? project.items : []), item],
+    activeItemId: item.id
+  };
+  return saveProject(nextProject);
 }
 
 async function readImageForModel(filePath) {
@@ -1338,6 +1433,28 @@ ipcMain.handle('projects:addImage', async (_event, payload) => {
     activeItemId: item.id
   };
   return saveProject(nextProject);
+});
+
+ipcMain.handle('projects:addDroppedImage', async (_event, payload) => {
+  const project = payload && payload.project;
+  const sourceUrl = String(payload && payload.sourceUrl || '').trim();
+  const dataUrl = String(payload && payload.dataUrl || '').trim();
+  const fileName = String(payload && payload.fileName || '').trim();
+
+  if (!project || !project.id) throw new Error('Project is required.');
+  if (!sourceUrl && !dataUrl) throw new Error('No dropped image source was found.');
+
+  const image = dataUrl
+    ? dataUrlToImageBuffer(dataUrl)
+    : await fetchImageFromUrl(sourceUrl);
+
+  return addImageBufferToProject({
+    project,
+    buffer: image.buffer,
+    ext: image.ext,
+    fileName,
+    originalSource: sourceUrl || 'Dropped data image'
+  });
 });
 
 ipcMain.handle('models:pickFolder', async () => {
