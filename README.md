@@ -2,7 +2,7 @@
 
 Local Prompt Studio is a Windows desktop app that turns reference images into reusable image-generation prompts with a local vision model.
 
-The recommended workflow is now **Ollama first**:
+The recommended workflow is **Ollama first**:
 
 1. Install Ollama.
 2. Download a vision model in Ollama.
@@ -74,33 +74,17 @@ If the model appears in the list, Local Prompt Studio should be able to detect i
 
 1. Open Local Prompt Studio.
 2. Press `환경 체크`.
-3. Press `Refresh`.
+3. Press `Refresh` next to the model list.
 4. Select an Ollama model from the model list.
 5. Press `모델 테스트` if available.
 6. Drag an image into the workspace.
-7. Choose an output style:
-   - 태그형
-   - 문장형
-   - 시스템 프롬프트형
-8. Press `프롬프트 생성`.
-
-## LM Studio
-
-LM Studio can still be used as an advanced alternative, but it is no longer the main recommended path.
-
-Default local endpoints:
-
-```text
-Ollama:    http://127.0.0.1:11434
-LM Studio: http://127.0.0.1:1234/v1
-```
-
-Keep local model servers bound to `127.0.0.1` or `localhost` unless you know exactly why you need network access.
+7. Choose an output style: `태그형`, `문장형`, or `시스템 프롬프트형`.
+8. Choose detail level. `상세` creates a longer element-by-element prompt.
+9. Press `프롬프트 생성`.
 
 ## Features
 
 - Ollama-first local model workflow
-- LM Studio compatibility for advanced users
 - Model test button for checking whether image input works
 - Drag-and-drop image workspace
 - Website image drag-and-drop support
@@ -113,6 +97,10 @@ Keep local model servers bound to `127.0.0.1` or `localhost` unless you know exa
   - Tag style
   - Sentence style
   - Structured system prompt style
+- Detail levels:
+  - Concise
+  - Balanced
+  - Exhaustive element-by-element analysis for longer generation prompts
 - SFW/adult-only prompt handling controls
 - Dark premium UI with gold-accented controls
 

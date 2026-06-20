@@ -2,7 +2,7 @@
 
 This guide is for first-time users who have never used a local vision model runner.
 
-The recommended setup is **Ollama first**. LM Studio is still supported as an advanced alternative.
+The recommended setup is **Ollama first**.
 
 ## 1. Install Local Prompt Studio
 
@@ -70,19 +70,8 @@ This is a local address on the user's own computer.
    - Tag style
    - Sentence style
    - Structured system prompt style
-7. Click `프롬프트 생성`.
-
-## LM Studio
-
-LM Studio can still be used if you prefer it.
-
-Default LM Studio endpoint:
-
-```text
-http://127.0.0.1:1234/v1
-```
-
-For most new users, Ollama is the simpler recommended path.
+7. Choose a detail level. `상세` creates a longer element-by-element prompt.
+8. Click `프롬프트 생성`.
 
 ## Where Projects Are Saved
 
